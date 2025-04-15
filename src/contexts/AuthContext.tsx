@@ -8,6 +8,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { auth } from "../firebase";
+import { syncUserToSupabase } from "../lib/api";
 
 type UserRole = "patient" | "healthcare" | "admin";
 
@@ -55,6 +56,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const authUser = user as AuthUser;
         authUser.role = userRole;
         setCurrentUser(authUser);
+
+        // Sync user with Supabase
+        syncUserToSupabase(
+          user.uid,
+          user.email || "",
+          user.displayName || "",
+          userRole,
+        ).catch((error) => {
+          console.error("Error syncing user to Supabase:", error);
+        });
       } else {
         setCurrentUser(null);
       }
@@ -83,6 +94,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Store role in localStorage
     localStorage.setItem(`user_role_${result.user.uid}`, role);
+
+    // Sync with Supabase
+    await syncUserToSupabase(result.user.uid, email, name, role);
 
     // Update current user
     const authUser = result.user as AuthUser;
